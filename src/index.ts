@@ -2,6 +2,9 @@ import { createClerkClient } from '@clerk/backend'
 import { serve } from '@hono/node-server'
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
+import dotenv from 'dotenv'
+
+dotenv.config()
 
 const app = new Hono()
 
