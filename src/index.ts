@@ -1,4 +1,5 @@
 import { createClerkClient } from '@clerk/backend'
+import { serve } from '@hono/node-server'
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 
@@ -23,5 +24,10 @@ app.get('/api/:userId', async (c) => {
   const user = await clerk.users.getUser(userId)
   return c.json(user)
 })
+const port = 3000
+console.log(`Server is running on http://localhost:${port}`)
 
-export default app
+serve({
+  fetch: app.fetch,
+  port
+})
