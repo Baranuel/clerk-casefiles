@@ -95,7 +95,7 @@ app.get('/api/users/all', async (c) => {
   }
 })
 
-const port = 3000
+const port = 1111
 console.log(`Server is running on http://localhost:${port}`)
 
 serve({
