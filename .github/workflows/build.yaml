@@ -35,5 +35,5 @@ jobs:
           push: true
           platforms: linux/amd64
           tags: |
-            ghcr.io/baranuel/casefiles:${{ github.sha }}
-            ghcr.io/baranuel/casefiles:latest
+            ghcr.io/baranuel/clerk-casefiles:${{ github.sha }}
+            ghcr.io/baranuel/clerk-casefiles:latest
