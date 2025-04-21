@@ -1,16 +1,43 @@
-import { createClerkClient } from '@clerk/backend'
+
 import { serve } from '@hono/node-server'
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import dotenv from 'dotenv'
-import db  from './db/index.js'
+import db from './db/index.js'
 import { user } from './db/schema.js'
 import { eq } from 'drizzle-orm'
 import { highlightMiddleware } from '@highlight-run/hono'
+import { createClerkClient } from '@clerk/backend'
+
+
+type EventType = 'user.created' | 'user.deleted' | 'session.created'
+
+type UserData = {
+  id: string;
+  first_name: string;
+  last_name: string;
+  image_url: string;
+}
+
+type SessionData = {
+  id: string;
+  user_id: string;
+  expires_at: string;
+}
+
+
+
+
+
+type ClerkWebhookData = { data: unknown, type: EventType }
+
+
+
 
 dotenv.config()
 
 const app = new Hono()
+const clerkClient = createClerkClient({ secretKey: process.env.CLERK_SECRET_KEY })
 
 app.use('/*', cors({
   origin: '*',
@@ -26,7 +53,7 @@ app.use(highlightMiddleware({
   projectID: 'jgo9j4yg'
 }))
 
-   
+
 
 // Example route to get and create user
 app.get('/api/:userId', async (c) => {
@@ -35,28 +62,46 @@ app.get('/api/:userId', async (c) => {
 
 app.post('/api/webhook', async (c) => {
   try {
-    const { data, type } = await c.req.json<{
-      data: {
-        id: string;
-        first_name: string;
-        last_name: string;
-        image_url: string;  
-      };
-      type: 'user.created' | 'user.deleted';
-    }>();
 
+    const { data, type } = await c.req.json<ClerkWebhookData>();
     console.log('Webhook received:', type, data);
 
+    if (type === 'session.created') {
+      const userData = data as SessionData
+      const user_id = userData.user_id
+
+      const dbUser = await db.select().from(user).where(eq(user.id, user_id)).execute()
+      if (!dbUser) {
+        const response = await clerkClient.users.getUser(user_id)
+        console.log('User not found in DB, creating user:', response)
+        
+        const createdUser = await db.insert(user).values({
+          id: user_id,
+          name: `${response.firstName} ${response.lastName}`,
+          imageUrl: response.imageUrl,
+          tier: 'free',
+          maxBoards: 2,
+        }).returning();
+        console.log('User created:', createdUser);
+      }
+
+      console.log('User found:', dbUser);
+      return c.json({ success: true, user: dbUser[0] });
+    }
+
+
     if (type === 'user.created') {
+      const userData = data as UserData
+
       const createdUser = await db.insert(user).values({
-        id: data.id,
-        name: `${data.first_name} ${data.last_name}`,
-        imageUrl: data.image_url,
+        id: userData.id,
+        name: `${userData.first_name} ${userData.last_name}`,
+        imageUrl: userData.image_url,
         tier: 'free',
         maxBoards: 2,
       }).returning();
 
-      if(!createdUser) {
+      if (!createdUser) {
         throw new Error('Failed to create user');
       }
 
@@ -65,12 +110,13 @@ app.post('/api/webhook', async (c) => {
     }
 
     if (type === 'user.deleted') {
+      const userData = data as UserData
       const deletedUser = await db
         .delete(user)
-        .where(eq(user.id, data.id))
+        .where(eq(user.id, userData.id))
         .returning();
 
-      if(!deletedUser) {
+      if (!deletedUser) {
         throw new Error('Failed to delete user');
       }
 
