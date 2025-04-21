@@ -17,6 +17,7 @@ COPY . .
 # Set environment variables
 ENV NODE_ENV=production
 
+
 # Expose the port the app runs on
 EXPOSE 1111
 
