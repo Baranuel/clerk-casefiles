@@ -143,6 +143,8 @@ app.get('/api/users/all', async (c) => {
 
 const port = 1111
 console.log(`Server is running on http://localhost:${port}`)
+console.log(process.env.DATABASE_URL)
+
 
 serve({
   fetch: app.fetch,
